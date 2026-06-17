@@ -88,6 +88,32 @@ a bit longer to be searchable.
 
 ---
 
+## Releasing from CI (tag-triggered)
+
+`.github/workflows/publish.yml` runs the publish step automatically when you push a version tag.
+
+1. Add these **repository secrets** (Settings → Secrets and variables → Actions):
+
+   | Secret | Value |
+   |---|---|
+   | `MAVEN_CENTRAL_USERNAME` | Central Portal user-token username |
+   | `MAVEN_CENTRAL_PASSWORD` | Central Portal user-token password |
+   | `SIGNING_KEY` | full ASCII-armored GPG secret key (`gpg --armor --export-secret-keys <KEY_ID>`) |
+   | `SIGNING_KEY_PASSWORD` | the GPG key passphrase |
+
+2. Bump `version` in `swiftlyads/build.gradle.kts`, commit, then tag and push:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+   The workflow checks that the tag (`v0.1.0`) matches the project version, builds, signs, and
+   uploads the deployment. With `automaticRelease = false` it stays staged — finish with the
+   manual **Publish** at https://central.sonatype.com (set the flag to `true` for fully automatic).
+
+---
+
 ## Consuming the published library
 
 ```kotlin

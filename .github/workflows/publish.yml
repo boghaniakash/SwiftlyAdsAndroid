@@ -1,0 +1,59 @@
+name: Publish to Maven Central
+
+# Publishes the :swiftlyads library when a version tag (e.g. v0.1.0) is pushed.
+# Can also be triggered manually from the Actions tab.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   MAVEN_CENTRAL_USERNAME   – Sonatype Central Portal user-token username
+#   MAVEN_CENTRAL_PASSWORD   – Sonatype Central Portal user-token password
+#   SIGNING_KEY              – ASCII-armored GPG secret key (full block, incl. headers)
+#   SIGNING_KEY_PASSWORD     – passphrase for that GPG key
+#
+# The deployment is uploaded to the Central Portal and, because `automaticRelease`
+# is false in swiftlyads/build.gradle.kts, left staged for a manual "Publish" at
+# https://central.sonatype.com. Flip that flag to true for fully automatic releases.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify tag matches project version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PROJECT_VERSION="$(grep -E 'version\s*=\s*"' swiftlyads/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+          echo "Tag version:     $TAG_VERSION"
+          echo "Project version: $PROJECT_VERSION"
+          if [ "$TAG_VERSION" != "$PROJECT_VERSION" ]; then
+            echo "::error::Tag ($TAG_VERSION) does not match the version in swiftlyads/build.gradle.kts ($PROJECT_VERSION)."
+            exit 1
+          fi
+
+      - name: Publish to Maven Central
+        run: ./gradlew :swiftlyads:publishToMavenCentral --no-configuration-cache --stacktrace
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
