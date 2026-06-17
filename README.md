@@ -1,5 +1,7 @@
 # SwiftlyAds (Android / Jetpack Compose)
 
+[![Build & Test](https://github.com/boghaniakash/SwiftlyAdsAndroid/actions/workflows/build.yml/badge.svg)](https://github.com/boghaniakash/SwiftlyAdsAndroid/actions/workflows/build.yml)
+
 A lightweight, Compose-first wrapper around the **Google Mobile Ads SDK (AdMob)** for Android —
 the Kotlin port of the [SwiftlyAds](../SwiftlyAds) Swift package. Configure once, show ads anywhere,
 with built-in UMP consent management, ad preloading, frequency capping, and a fluent callback API.
