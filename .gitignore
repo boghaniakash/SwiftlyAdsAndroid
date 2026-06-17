@@ -1,0 +1,21 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Build outputs (all modules)
+build/
+/swiftlyads/build
+/app/build
+
+# Kotlin incremental compilation cache
+.kotlin
+
+# Local Claude Code session data — not part of the library
+/.claude
