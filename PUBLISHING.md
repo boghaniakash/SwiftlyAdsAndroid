@@ -4,7 +4,7 @@ The `:swiftlyads` module is configured to publish to **Maven Central** via the
 [Sonatype Central Portal](https://central.sonatype.com) using the
 [vanniktech `maven-publish`](https://github.com/vanniktech/gradle-maven-publish-plugin) plugin.
 
-- **Coordinates:** `io.github.akashboghani:swiftlyads:0.1.0`
+- **Coordinates:** `io.github.boghaniakash:swiftlyads:0.1.0`
 - **Group/version/POM** are defined in `swiftlyads/build.gradle.kts` (`mavenPublishing { … }`).
   Bump the `version = "…"` there for each release. Use a `-SNAPSHOT` suffix for snapshot builds.
 
@@ -18,9 +18,9 @@ The `:swiftlyads` module is configured to publish to **Maven Central** via the
 ### 1. Sonatype Central Portal account + namespace
 
 1. Create an account at https://central.sonatype.com.
-2. Register the namespace **`io.github.akashboghani`**. For an `io.github.*` namespace the portal
+2. Register the namespace **`io.github.boghaniakash`**. For an `io.github.*` namespace the portal
    verifies ownership by asking you to create a GitHub repo with a generated name — follow the
-   on-screen instructions. (This requires the GitHub account `akashboghani`.)
+   on-screen instructions. (This requires the GitHub account `boghaniakash`.)
 3. Generate a **user token**: Central Portal → *Account* → *Generate User Token*. This gives you a
    token *username* and *password* (not your login credentials).
 
@@ -72,7 +72,7 @@ export ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=<your-gpg-passphrase>
 ```bash
 # 1. (optional) sanity-check the artifact locally first — no credentials/signing key needed
 ./gradlew :swiftlyads:publishToMavenLocal
-#   produces ~/.m2/repository/io/github/akashboghani/swiftlyads/0.1.0/
+#   produces ~/.m2/repository/io/github/boghaniakash/swiftlyads/0.1.0/
 
 # 2. Build, sign, and upload a staged deployment to the Central Portal
 ./gradlew :swiftlyads:publishToMavenCentral
@@ -93,6 +93,6 @@ a bit longer to be searchable.
 ```kotlin
 // your settings.gradle.kts / build.gradle.kts repositories already include mavenCentral()
 dependencies {
-    implementation("io.github.akashboghani:swiftlyads:0.1.0")
+    implementation("io.github.boghaniakash:swiftlyads:0.1.0")
 }
 ```

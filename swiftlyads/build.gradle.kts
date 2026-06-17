@@ -66,7 +66,7 @@ mavenPublishing {
     signAllPublications()
 
     coordinates(
-        groupId = "io.github.akashboghani",
+        groupId = "io.github.boghaniakash",
         artifactId = "swiftlyads",
         version = "0.1.0",
     )
@@ -79,7 +79,7 @@ mavenPublishing {
                 "and native ads with built-in UMP consent, preloading and frequency capping.",
         )
         inceptionYear.set("2026")
-        url.set("https://github.com/akashboghani/SwiftlyAdsAndroid")
+        url.set("https://github.com/boghaniakash/SwiftlyAdsAndroid")
 
         licenses {
             license {
@@ -90,15 +90,15 @@ mavenPublishing {
         }
         developers {
             developer {
-                id.set("akashboghani")
+                id.set("boghaniakash")
                 name.set("Akash Boghani")
-                url.set("https://github.com/akashboghani")
+                url.set("https://github.com/boghaniakash")
             }
         }
         scm {
-            url.set("https://github.com/akashboghani/SwiftlyAdsAndroid")
-            connection.set("scm:git:git://github.com/akashboghani/SwiftlyAdsAndroid.git")
-            developerConnection.set("scm:git:ssh://git@github.com/akashboghani/SwiftlyAdsAndroid.git")
+            url.set("https://github.com/boghaniakash/SwiftlyAdsAndroid")
+            connection.set("scm:git:git://github.com/boghaniakash/SwiftlyAdsAndroid.git")
+            developerConnection.set("scm:git:ssh://git@github.com/boghaniakash/SwiftlyAdsAndroid.git")
         }
     }
 }
