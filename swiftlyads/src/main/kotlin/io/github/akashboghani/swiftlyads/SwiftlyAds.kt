@@ -31,6 +31,10 @@ import io.github.akashboghani.swiftlyads.presentation.SwiftlyRewardInterAd
  * Unlike the iOS API, [configure] takes a [Context] (Android needs one to load ads) and the
  * full-screen `show*` methods take an [Activity] (instead of a `UIViewController`). Banner and
  * native ads are exposed as Composables in the `io.github.akashboghani.swiftlyads.compose` package.
+ *
+ * Each `show*` / `request*` call returns a **fresh** presentation object, so callbacks attached to
+ * one call never clobber another's. A coroutine-friendly surface (`suspend` + `Flow`) is available
+ * as extension functions in `SwiftlyAdsCoroutines.kt`.
  */
 object SwiftlyAds {
 
@@ -43,13 +47,6 @@ object SwiftlyAds {
     private var rewardInterAd: RewardInterAdManager? = null
     private var nativeAd: NativeAdManager? = null
     private var consentManager: AdsConsentManager? = null
-
-    private val adLoadPresentation = SwiftlyAdLoadPresentation()
-    private val swiftlyInterAd = SwiftlyInterAd()
-    private val swiftlyAppOpenAd = SwiftlyAppOpenAd()
-    private val swiftlyRewardAd = SwiftlyRewardAd()
-    private val swiftlyRewardInterAd = SwiftlyRewardInterAd()
-    private val swiftlyNativeAd = SwiftlyNativeAd()
 
     private var disabled = false
     private var hasInitializedMobileAds = false
@@ -83,15 +80,15 @@ object SwiftlyAds {
         val requestProvider = { buildAdRequest() }
 
         interstitialAd = provider.interstitialAdUnitId
-            ?.let { InterAdManager(ctx, it, requestProvider, swiftlyInterAd) }
+            ?.let { InterAdManager(ctx, it, requestProvider) }
         appOpenAd = provider.appOpenAdUnitId
-            ?.let { AppOpenAdManager(ctx, it, requestProvider, swiftlyAppOpenAd) }
+            ?.let { AppOpenAdManager(ctx, it, requestProvider) }
         rewardAd = provider.rewardedAdUnitId
-            ?.let { RewardAdManager(ctx, it, requestProvider, swiftlyRewardAd) }
+            ?.let { RewardAdManager(ctx, it, requestProvider) }
         rewardInterAd = provider.rewardedInterstitialAdUnitId
-            ?.let { RewardInterAdManager(ctx, it, requestProvider, swiftlyRewardInterAd) }
+            ?.let { RewardInterAdManager(ctx, it, requestProvider) }
         nativeAd = provider.nativeAdUnitId
-            ?.let { NativeAdManager(ctx, it, requestProvider, swiftlyNativeAd, provider.nativeAdMediaAspectRatio) }
+            ?.let { NativeAdManager(ctx, it, requestProvider, provider.nativeAdMediaAspectRatio) }
 
         provider.isTaggedForChildDirectedTreatment?.let { coppa ->
             provider.mediationConfigurator?.updateCOPPA(coppa)
@@ -123,9 +120,10 @@ object SwiftlyAds {
      * Returns immediately with a fluent presentation; attach `.onSuccess { }` / `.onError { }`.
      */
     fun initializeIfNeeded(activity: Activity, showConsent: Boolean = true): SwiftlyAdLoadPresentation {
+        val presentation = SwiftlyAdLoadPresentation()
         if (hasInitializedMobileAds) {
-            MainDispatch.afterDefaultDelay { adLoadPresentation.onSuccessCallback?.invoke() }
-            return adLoadPresentation
+            MainDispatch.nextTick { presentation.onSuccessCallback?.invoke() }
+            return presentation
         }
         this.showConsent = showConsent
 
@@ -137,7 +135,7 @@ object SwiftlyAds {
                 MobileAds.initialize(activity.applicationContext) {
                     hasInitializedMobileAds = true
                     if (configuration?.preloadsAds == true) loadAds()
-                    MainDispatch.afterDefaultDelay { adLoadPresentation.onSuccessCallback?.invoke() }
+                    MainDispatch.nextTick { presentation.onSuccessCallback?.invoke() }
                 }
             }
         }
@@ -146,7 +144,7 @@ object SwiftlyAds {
         if (showConsent && cm != null) {
             cm.request(activity) { error ->
                 if (error != null) {
-                    MainDispatch.afterDefaultDelay { adLoadPresentation.onErrorCallback?.invoke(error) }
+                    MainDispatch.nextTick { presentation.onErrorCallback?.invoke(error) }
                 } else {
                     proceed()
                 }
@@ -154,7 +152,7 @@ object SwiftlyAds {
         } else {
             proceed()
         }
-        return adLoadPresentation
+        return presentation
     }
 
     /** Stops all managers, re-applies an updated configuration, and re-preloads if enabled. */
@@ -173,86 +171,90 @@ object SwiftlyAds {
 
     /** Shows an interstitial ad. Honours frequency capping unless [bypassingFrequencyLimit]. */
     fun showInterstitialAd(activity: Activity, bypassingFrequencyLimit: Boolean = false): SwiftlyInterAd {
+        val presentation = SwiftlyInterAd()
         if (disabled) {
-            MainDispatch.afterDefaultDelay { swiftlyInterAd.onCloseCallback?.invoke() }
-            return swiftlyInterAd
+            MainDispatch.nextTick { presentation.onCloseCallback?.invoke() }
+            return presentation
         }
         val manager = interstitialAd ?: run {
-            MainDispatch.afterDefaultDelay { swiftlyInterAd.onErrorCallback?.invoke(SwiftlyAdError.InterstitialAdUnitIdNotSet) }
-            return swiftlyInterAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.InterstitialAdUnitIdNotSet) }
+            return presentation
         }
         if (!bypassingFrequencyLimit && interAdCounter % (configuration?.interAdShowCount ?: 1) != 0) {
             interAdCounter++
-            MainDispatch.afterDefaultDelay { swiftlyInterAd.onCloseCallback?.invoke() }
-            return swiftlyInterAd
+            MainDispatch.nextTick { presentation.onCloseCallback?.invoke() }
+            return presentation
         }
         if (!hasConsent) {
-            MainDispatch.afterDefaultDelay { swiftlyInterAd.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
-            return swiftlyInterAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
+            return presentation
         }
-        if (configuration?.preloadsAds == false) manager.loadAndShow(activity) else manager.show(activity)
+        if (configuration?.preloadsAds == false) manager.loadAndShow(activity, presentation) else manager.show(activity, presentation)
         if (!bypassingFrequencyLimit) interAdCounter++
-        return swiftlyInterAd
+        return presentation
     }
 
     /** Shows an app open ad. Honours frequency capping unless [bypassingFrequencyLimit]. */
     fun showAppOpenAd(activity: Activity, bypassingFrequencyLimit: Boolean = false): SwiftlyAppOpenAd {
+        val presentation = SwiftlyAppOpenAd()
         if (disabled) {
-            MainDispatch.afterDefaultDelay { swiftlyAppOpenAd.onCloseCallback?.invoke() }
-            return swiftlyAppOpenAd
+            MainDispatch.nextTick { presentation.onCloseCallback?.invoke() }
+            return presentation
         }
         val manager = appOpenAd ?: run {
-            MainDispatch.afterDefaultDelay { swiftlyAppOpenAd.onErrorCallback?.invoke(SwiftlyAdError.AppOpenAdUnitIdNotSet) }
-            return swiftlyAppOpenAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.AppOpenAdUnitIdNotSet) }
+            return presentation
         }
         if (!bypassingFrequencyLimit && appOpenAdCounter % (configuration?.appOpenAdShowCount ?: 1) != 0) {
             appOpenAdCounter++
-            MainDispatch.afterDefaultDelay { swiftlyAppOpenAd.onCloseCallback?.invoke() }
-            return swiftlyAppOpenAd
+            MainDispatch.nextTick { presentation.onCloseCallback?.invoke() }
+            return presentation
         }
         if (!hasConsent) {
-            MainDispatch.afterDefaultDelay { swiftlyAppOpenAd.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
-            return swiftlyAppOpenAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
+            return presentation
         }
-        if (configuration?.preloadsAds == false) manager.loadAndShow(activity) else manager.show(activity)
+        if (configuration?.preloadsAds == false) manager.loadAndShow(activity, presentation) else manager.show(activity, presentation)
         if (!bypassingFrequencyLimit) appOpenAdCounter++
-        return swiftlyAppOpenAd
+        return presentation
     }
 
     /** Shows a rewarded ad. */
     fun showRewardAd(activity: Activity): SwiftlyRewardAd {
+        val presentation = SwiftlyRewardAd()
         if (disabled) {
-            MainDispatch.afterDefaultDelay { swiftlyRewardAd.onCloseCallback?.invoke() }
-            return swiftlyRewardAd
+            MainDispatch.nextTick { presentation.onCloseCallback?.invoke() }
+            return presentation
         }
         val manager = rewardAd ?: run {
-            MainDispatch.afterDefaultDelay { swiftlyRewardAd.onErrorCallback?.invoke(SwiftlyAdError.RewardedAdUnitIdNotSet) }
-            return swiftlyRewardAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.RewardedAdUnitIdNotSet) }
+            return presentation
         }
         if (!hasConsent) {
-            MainDispatch.afterDefaultDelay { swiftlyRewardAd.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
-            return swiftlyRewardAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
+            return presentation
         }
-        if (configuration?.preloadsAds == false) manager.loadAndShow(activity) else manager.show(activity)
-        return swiftlyRewardAd
+        if (configuration?.preloadsAds == false) manager.loadAndShow(activity, presentation) else manager.show(activity, presentation)
+        return presentation
     }
 
     /** Shows a rewarded interstitial ad. */
     fun showRewardInterAd(activity: Activity): SwiftlyRewardInterAd {
+        val presentation = SwiftlyRewardInterAd()
         if (disabled) {
-            MainDispatch.afterDefaultDelay { swiftlyRewardInterAd.onCloseCallback?.invoke() }
-            return swiftlyRewardInterAd
+            MainDispatch.nextTick { presentation.onCloseCallback?.invoke() }
+            return presentation
         }
         val manager = rewardInterAd ?: run {
-            MainDispatch.afterDefaultDelay { swiftlyRewardInterAd.onErrorCallback?.invoke(SwiftlyAdError.RewardedInterAdUnitIdNotSet) }
-            return swiftlyRewardInterAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.RewardedInterAdUnitIdNotSet) }
+            return presentation
         }
         if (!hasConsent) {
-            MainDispatch.afterDefaultDelay { swiftlyRewardInterAd.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
-            return swiftlyRewardInterAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
+            return presentation
         }
-        if (configuration?.preloadsAds == false) manager.loadAndShow(activity) else manager.show(activity)
-        return swiftlyRewardInterAd
+        if (configuration?.preloadsAds == false) manager.loadAndShow(activity, presentation) else manager.show(activity, presentation)
+        return presentation
     }
 
     /**
@@ -263,29 +265,31 @@ object SwiftlyAds {
         bypassingFrequencyLimit: Boolean = false,
         mediaAspectRatio: SwiftlyMediaAspectRatio? = null,
     ): SwiftlyNativeAd {
+        val presentation = SwiftlyNativeAd()
         if (disabled) {
-            MainDispatch.afterDefaultDelay { swiftlyNativeAd.onReceiveAdCallback?.invoke(null) }
-            return swiftlyNativeAd
+            MainDispatch.nextTick { presentation.onReceiveAdCallback?.invoke(null) }
+            return presentation
         }
         val manager = nativeAd ?: run {
-            MainDispatch.afterDefaultDelay { swiftlyNativeAd.onErrorCallback?.invoke(SwiftlyAdError.NativeAdUnitIdNotSet) }
-            return swiftlyNativeAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.NativeAdUnitIdNotSet) }
+            return presentation
         }
+        manager.activePresentation = presentation
         if (!bypassingFrequencyLimit && nativeAdCounter % (configuration?.nativeAdShowCount ?: 1) != 0) {
             nativeAdCounter++
-            MainDispatch.afterDefaultDelay { swiftlyNativeAd.onReceiveAdCallback?.invoke(null) }
-            return swiftlyNativeAd
+            MainDispatch.nextTick { presentation.onReceiveAdCallback?.invoke(null) }
+            return presentation
         }
         if (!hasConsent) {
-            MainDispatch.afterDefaultDelay { swiftlyNativeAd.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
-            return swiftlyNativeAd
+            MainDispatch.nextTick { presentation.onErrorCallback?.invoke(SwiftlyAdError.ConsentNotObtained) }
+            return presentation
         }
-        MainDispatch.afterDefaultDelay {
-            swiftlyNativeAd.onReceiveAdCallback?.invoke(manager.getNextAd(mediaAspectRatio))
+        MainDispatch.nextTick {
+            presentation.onReceiveAdCallback?.invoke(manager.getNextAd(mediaAspectRatio))
             if (!bypassingFrequencyLimit) nativeAdCounter++
             if (configuration?.preloadsAds == true) manager.loadAd(true, mediaAspectRatio)
         }
-        return swiftlyNativeAd
+        return presentation
     }
 
     /**

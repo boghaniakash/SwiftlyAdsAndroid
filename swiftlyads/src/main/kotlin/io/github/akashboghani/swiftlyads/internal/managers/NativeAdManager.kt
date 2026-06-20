@@ -14,6 +14,10 @@ import io.github.akashboghani.swiftlyads.presentation.SwiftlyNativeAd
 /**
  * Loads and caches native ads. Mirrors iOS `NativeAdManager`.
  *
+ * The presentation is supplied per request via [activePresentation] (set by the facade before each
+ * `requestNativeAd`) rather than once at construction, so concurrent requests never clobber each
+ * other's callbacks.
+ *
  * Note: cached ads are not explicitly `destroy()`-ed on eviction because they may still be
  * displayed (mirroring the iOS ARC behaviour). Call `NativeAd.destroy()` yourself once you are
  * permanently done with an ad if you want to free its resources eagerly.
@@ -22,9 +26,11 @@ internal class NativeAdManager(
     private val appContext: Context,
     private val adUnitId: String,
     private val adRequestProvider: () -> AdRequest,
-    private val activePresentation: SwiftlyNativeAd,
     private val mediaAspectRatio: SwiftlyMediaAspectRatio?,
 ) {
+    /** The callback sink for the request currently in flight. Set by the facade per request. */
+    var activePresentation: SwiftlyNativeAd? = null
+
     private var adLoader: AdLoader? = null
     private val preLoadedAds = ArrayDeque<NativeAd>()
     private var cachedAspectRatio: SwiftlyMediaAspectRatio? = null
@@ -43,18 +49,18 @@ internal class NativeAdManager(
                 if (this.isPreloadAds) {
                     val wasEmpty = preLoadedAds.isEmpty()
                     cache(nativeAd)
-                    if (wasEmpty) activePresentation.onReceiveAdCallback?.invoke(nativeAd)
+                    if (wasEmpty) activePresentation?.onReceiveAdCallback?.invoke(nativeAd)
                 } else {
-                    activePresentation.onReceiveAdCallback?.invoke(nativeAd)
+                    activePresentation?.onReceiveAdCallback?.invoke(nativeAd)
                 }
             }
             .withAdListener(object : AdListener() {
                 override fun onAdLoaded() {
-                    activePresentation.onAdLoadedCallback?.invoke()
+                    activePresentation?.onAdLoadedCallback?.invoke()
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
-                    activePresentation.onErrorCallback?.invoke(
+                    activePresentation?.onErrorCallback?.invoke(
                         SwiftlyAdError.SdkError(error.message, error.code),
                     )
                 }

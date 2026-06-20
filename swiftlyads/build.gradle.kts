@@ -53,6 +53,9 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     debugImplementation(libs.androidx.ui.tooling)
 
+    // Exposed in the public coroutine API (suspend functions + Flow), so consumers need it too.
+    api(libs.kotlinx.coroutines.android)
+
     // Google Mobile Ads (AdMob) + User Messaging Platform (UMP consent)
     api(libs.play.services.ads)
     api(libs.user.messaging.platform)
@@ -68,7 +71,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.boghaniakash",
         artifactId = "swiftlyads",
-        version = "0.1.0",
+        version = "0.2.0",
     )
 
     pom {

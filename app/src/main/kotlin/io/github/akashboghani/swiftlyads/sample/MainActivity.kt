@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,9 +43,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
+import io.github.akashboghani.swiftlyads.SwiftlyAdResult
 import io.github.akashboghani.swiftlyads.SwiftlyAds
+import io.github.akashboghani.swiftlyads.SwiftlyNativeAdState
 import io.github.akashboghani.swiftlyads.SwiftlyNativeAds
+import io.github.akashboghani.swiftlyads.initialize
+import io.github.akashboghani.swiftlyads.nativeAdFlow
+import io.github.akashboghani.swiftlyads.showAppOpen
+import io.github.akashboghani.swiftlyads.showInterstitial
+import io.github.akashboghani.swiftlyads.showReward
+import io.github.akashboghani.swiftlyads.showRewardInter
 import io.github.akashboghani.swiftlyads.compose.SwiftlyBannerAd
 import io.github.akashboghani.swiftlyads.compose.SwiftlyMediaView
 import io.github.akashboghani.swiftlyads.compose.SwiftlyNativeAdView
@@ -69,25 +81,38 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun SampleScreen(activity: Activity) {
+    val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("Initializing…") }
-    var nativeAd by remember { mutableStateOf<SwiftlyNativeAds?>(null) }
+    var initialized by remember { mutableStateOf(false) }
+    var reloadCount by remember { mutableStateOf(0) }
 
+    // Initialize the SDK with the suspend API. showConsent = false keeps the sample frictionless;
+    // flip to true to test the UMP form.
     LaunchedEffect(Unit) {
-        // showConsent = false keeps the sample frictionless; flip to true to test the UMP form.
-        SwiftlyAds.initializeIfNeeded(activity, showConsent = false)
+        runCatching { SwiftlyAds.initialize(activity, showConsent = false) }
             .onSuccess {
                 status = "SDK ready"
-                SwiftlyAds.requestNativeAd()
-                    .onReceiveAd { nativeAd = it }
-                    .onError {
-                        status = "Native error: ${it.message}"
-                        Log.e(TAG, "Native ad failed to load: ${it.message}", it)
-                    }
+                initialized = true
             }
-            .onError {
+            .onFailure {
                 status = "Init failed: ${it.message}"
                 Log.e(TAG, "SDK init failed: ${it.message}", it)
             }
+    }
+
+    // Native ad as a Flow: starts once the SDK is ready and re-collects whenever reloadCount
+    // changes (the "Reload" button). collectAsStateWithLifecycle keeps collection lifecycle-aware.
+    val nativeFlow = remember(initialized, reloadCount) {
+        if (initialized) SwiftlyAds.nativeAdFlow(bypassingFrequencyLimit = reloadCount > 0) else emptyFlow()
+    }
+    val nativeState by nativeFlow.collectAsStateWithLifecycle(SwiftlyNativeAdState.Loading)
+    val nativeAd = (nativeState as? SwiftlyNativeAdState.Loaded)?.ad
+
+    LaunchedEffect(nativeState) {
+        (nativeState as? SwiftlyNativeAdState.Failed)?.let {
+            status = "Native error: ${it.error.message}"
+            Log.e(TAG, "Native ad failed to load: ${it.error.message}", it.error)
+        }
     }
 
     Column(
@@ -102,61 +127,68 @@ private fun SampleScreen(activity: Activity) {
 
         Button(
             onClick = {
-                SwiftlyAds.showInterstitialAd(activity)
-                    .onClose { status = "Interstitial closed" }
-                    .onError {
-                        status = "Interstitial error: ${it.message}"
-                        Log.e(TAG, "Interstitial failed: ${it.message}", it)
+                scope.launch {
+                    when (val result = SwiftlyAds.showInterstitial(activity)) {
+                        is SwiftlyAdResult.Failed -> {
+                            status = "Interstitial error: ${result.error.message}"
+                            Log.e(TAG, "Interstitial failed: ${result.error.message}", result.error)
+                        }
+                        else -> status = "Interstitial closed"
                     }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Show Interstitial") }
 
         Button(
             onClick = {
-                SwiftlyAds.showRewardAd(activity)
-                    .onReward { amount -> status = "Reward earned: $amount" }
-                    .onError {
-                        status = "Rewarded error: ${it.message}"
-                        Log.e(TAG, "Rewarded failed: ${it.message}", it)
+                scope.launch {
+                    when (val result = SwiftlyAds.showReward(activity)) {
+                        is SwiftlyAdResult.Rewarded -> status = "Reward earned: ${result.amount}"
+                        is SwiftlyAdResult.Failed -> {
+                            status = "Rewarded error: ${result.error.message}"
+                            Log.e(TAG, "Rewarded failed: ${result.error.message}", result.error)
+                        }
+                        SwiftlyAdResult.Dismissed -> status = "Rewarded closed (no reward)"
                     }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Show Rewarded") }
 
         Button(
             onClick = {
-                SwiftlyAds.showRewardInterAd(activity)
-                    .onReward { amount -> status = "Reward (inter) earned: $amount" }
-                    .onError {
-                        status = "RewardInter error: ${it.message}"
-                        Log.e(TAG, "RewardInter failed: ${it.message}", it)
+                scope.launch {
+                    when (val result = SwiftlyAds.showRewardInter(activity)) {
+                        is SwiftlyAdResult.Rewarded -> status = "Reward (inter) earned: ${result.amount}"
+                        is SwiftlyAdResult.Failed -> {
+                            status = "RewardInter error: ${result.error.message}"
+                            Log.e(TAG, "RewardInter failed: ${result.error.message}", result.error)
+                        }
+                        SwiftlyAdResult.Dismissed -> status = "Rewarded interstitial closed (no reward)"
                     }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Show Rewarded Interstitial") }
 
         Button(
             onClick = {
-                SwiftlyAds.showAppOpenAd(activity)
-                    .onClose { status = "App open closed" }
-                    .onError {
-                        status = "AppOpen error: ${it.message}"
-                        Log.e(TAG, "AppOpen failed: ${it.message}", it)
+                scope.launch {
+                    when (val result = SwiftlyAds.showAppOpen(activity)) {
+                        is SwiftlyAdResult.Failed -> {
+                            status = "AppOpen error: ${result.error.message}"
+                            Log.e(TAG, "AppOpen failed: ${result.error.message}", result.error)
+                        }
+                        else -> status = "App open closed"
                     }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Show App Open") }
 
         Button(
-            onClick = {
-                SwiftlyAds.requestNativeAd(bypassingFrequencyLimit = true)
-                    .onReceiveAd { nativeAd = it }
-                    .onError {
-                        status = "Native error: ${it.message}"
-                        Log.e(TAG, "Native ad reload failed: ${it.message}", it)
-                    }
-            },
+            onClick = { reloadCount++ },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Reload Native Ad") }
 

@@ -12,15 +12,20 @@ import io.github.akashboghani.swiftlyads.error.SwiftlyAdError
 import io.github.akashboghani.swiftlyads.internal.MainDispatch
 import io.github.akashboghani.swiftlyads.presentation.SwiftlyRewardInterAd
 
-/** Manages the rewarded interstitial ad lifecycle. Mirrors iOS `RewardInterAdManager`. */
+/**
+ * Manages the rewarded interstitial ad lifecycle. Mirrors iOS `RewardInterAdManager`.
+ *
+ * The presentation is supplied per `show` call (see [InterAdManager] for the rationale);
+ * [activePresentation] tracks the show currently in flight and receives the reward callback.
+ */
 internal class RewardInterAdManager(
     private val appContext: Context,
     private val adUnitId: String,
     private val adRequestProvider: () -> AdRequest,
-    private val activePresentation: SwiftlyRewardInterAd,
 ) {
     private var rewardedInterstitialAd: RewardedInterstitialAd? = null
     private var isLoading = false
+    private var activePresentation: SwiftlyRewardInterAd? = null
 
     val isReady: Boolean get() = rewardedInterstitialAd != null
 
@@ -51,23 +56,25 @@ internal class RewardInterAdManager(
         rewardedInterstitialAd = null
     }
 
-    fun show(activity: Activity) {
+    fun show(activity: Activity, presentation: SwiftlyRewardInterAd) {
+        activePresentation = presentation
         val ad = rewardedInterstitialAd
         if (ad != null) {
             ad.show(activity) { rewardItem ->
-                activePresentation.onRewardCallback?.invoke(rewardItem.amount)
+                presentation.onRewardCallback?.invoke(rewardItem.amount)
             }
         } else {
             reload()
-            MainDispatch.afterDefaultDelay {
-                activePresentation.onErrorCallback?.invoke(SwiftlyAdError.RewardedInterAdNotLoaded)
+            MainDispatch.nextTick {
+                presentation.onErrorCallback?.invoke(SwiftlyAdError.RewardedInterAdNotLoaded)
             }
         }
     }
 
-    fun loadAndShow(activity: Activity) {
+    fun loadAndShow(activity: Activity, presentation: SwiftlyRewardInterAd) {
+        activePresentation = presentation
         if (rewardedInterstitialAd != null) {
-            show(activity)
+            show(activity, presentation)
             return
         }
         isLoading = true
@@ -81,14 +88,14 @@ internal class RewardInterAdManager(
                     ad.fullScreenContentCallback = fullScreenCallback()
                     rewardedInterstitialAd = ad
                     ad.show(activity) { rewardItem ->
-                        activePresentation.onRewardCallback?.invoke(rewardItem.amount)
+                        presentation.onRewardCallback?.invoke(rewardItem.amount)
                     }
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     isLoading = false
                     rewardedInterstitialAd = null
-                    activePresentation.onErrorCallback?.invoke(
+                    presentation.onErrorCallback?.invoke(
                         SwiftlyAdError.SdkError(error.message, error.code),
                     )
                 }
@@ -98,18 +105,18 @@ internal class RewardInterAdManager(
 
     private fun fullScreenCallback() = object : FullScreenContentCallback() {
         override fun onAdShowedFullScreenContent() {
-            activePresentation.onOpenCallback?.invoke()
+            activePresentation?.onOpenCallback?.invoke()
         }
 
         override fun onAdDismissedFullScreenContent() {
             rewardedInterstitialAd = null
-            activePresentation.onCloseCallback?.invoke()
+            activePresentation?.onCloseCallback?.invoke()
             reload()
         }
 
         override fun onAdFailedToShowFullScreenContent(error: AdError) {
             rewardedInterstitialAd = null
-            activePresentation.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
+            activePresentation?.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
             reload()
         }
     }

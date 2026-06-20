@@ -11,15 +11,20 @@ import io.github.akashboghani.swiftlyads.error.SwiftlyAdError
 import io.github.akashboghani.swiftlyads.internal.MainDispatch
 import io.github.akashboghani.swiftlyads.presentation.SwiftlyAppOpenAd
 
-/** Manages the app open ad lifecycle. Mirrors iOS `AppOpenAdManager`. */
+/**
+ * Manages the app open ad lifecycle. Mirrors iOS `AppOpenAdManager`.
+ *
+ * The presentation is supplied per `show` call (see [InterAdManager] for the rationale);
+ * [activePresentation] tracks the show currently in flight.
+ */
 internal class AppOpenAdManager(
     private val appContext: Context,
     private val adUnitId: String,
     private val adRequestProvider: () -> AdRequest,
-    private val activePresentation: SwiftlyAppOpenAd,
 ) {
     private var appOpenAd: AppOpenAd? = null
     private var isLoading = false
+    private var activePresentation: SwiftlyAppOpenAd? = null
 
     val isReady: Boolean get() = appOpenAd != null
 
@@ -50,21 +55,23 @@ internal class AppOpenAdManager(
         appOpenAd = null
     }
 
-    fun show(activity: Activity) {
+    fun show(activity: Activity, presentation: SwiftlyAppOpenAd) {
+        activePresentation = presentation
         val ad = appOpenAd
         if (ad != null) {
             ad.show(activity)
         } else {
             reload()
-            MainDispatch.afterDefaultDelay {
-                activePresentation.onErrorCallback?.invoke(SwiftlyAdError.AppOpenAdNotLoaded)
+            MainDispatch.nextTick {
+                presentation.onErrorCallback?.invoke(SwiftlyAdError.AppOpenAdNotLoaded)
             }
         }
     }
 
-    fun loadAndShow(activity: Activity) {
+    fun loadAndShow(activity: Activity, presentation: SwiftlyAppOpenAd) {
+        activePresentation = presentation
         if (appOpenAd != null) {
-            show(activity)
+            show(activity, presentation)
             return
         }
         isLoading = true
@@ -83,7 +90,7 @@ internal class AppOpenAdManager(
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     isLoading = false
                     appOpenAd = null
-                    activePresentation.onErrorCallback?.invoke(
+                    presentation.onErrorCallback?.invoke(
                         SwiftlyAdError.SdkError(error.message, error.code),
                     )
                 }
@@ -93,18 +100,18 @@ internal class AppOpenAdManager(
 
     private fun fullScreenCallback() = object : FullScreenContentCallback() {
         override fun onAdShowedFullScreenContent() {
-            activePresentation.onOpenCallback?.invoke()
+            activePresentation?.onOpenCallback?.invoke()
         }
 
         override fun onAdDismissedFullScreenContent() {
             appOpenAd = null
-            activePresentation.onCloseCallback?.invoke()
+            activePresentation?.onCloseCallback?.invoke()
             reload()
         }
 
         override fun onAdFailedToShowFullScreenContent(error: AdError) {
             appOpenAd = null
-            activePresentation.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
+            activePresentation?.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
             reload()
         }
     }
