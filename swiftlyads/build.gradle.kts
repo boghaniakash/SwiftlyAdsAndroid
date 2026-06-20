@@ -60,9 +60,9 @@ dependencies {
 
 mavenPublishing {
     // Uploads to the Sonatype Central Portal (the current Maven Central pipeline).
-    // automaticRelease = false → the deployment is staged so you can review and release it
-    // manually from https://central.sonatype.com. Set to true once you trust the pipeline.
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = false)
+    // automaticRelease = true → the deployment is released automatically once it passes
+    // validation, with no manual "Publish" step at https://central.sonatype.com.
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
     signAllPublications()
 
     coordinates(

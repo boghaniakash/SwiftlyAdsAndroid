@@ -80,8 +80,9 @@ export ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=<your-gpg-passphrase>
 # 3. Go to https://central.sonatype.com → Deployments, review the validation, and click "Publish".
 ```
 
-`automaticRelease` is set to `false` in `mavenPublishing { … }`, so step 3 is a manual confirmation.
-Once you trust the pipeline, set it to `true` and `publishToMavenCentral` will release automatically.
+`automaticRelease` is set to `true` in `mavenPublishing { … }`, so step 3 happens automatically:
+the deployment is released as soon as it passes validation. (Set it back to `false` if you'd rather
+review and click **Publish** manually at https://central.sonatype.com.)
 
 After the deployment is published it typically takes ~15–30 minutes to appear on Maven Central and
 a bit longer to be searchable.
@@ -109,8 +110,8 @@ a bit longer to be searchable.
    ```
 
    The workflow checks that the tag (`v0.1.0`) matches the project version, builds, signs, and
-   uploads the deployment. With `automaticRelease = false` it stays staged — finish with the
-   manual **Publish** at https://central.sonatype.com (set the flag to `true` for fully automatic).
+   uploads the deployment. With `automaticRelease = true` it releases automatically once validation
+   passes — no manual step (set the flag to `false` if you'd rather stage and Publish by hand).
 
 ---
 
