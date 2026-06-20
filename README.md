@@ -29,9 +29,38 @@ with built-in UMP consent management, ad preloading, frequency capping, and a fl
 
 ## Installation
 
-This repository is a standalone Gradle library project (module `:swiftlyads`).
+SwiftlyAds is published to **Maven Central**. `mavenCentral()` is already in the default Android
+project, so just add the dependency to your app module's **`build.gradle.kts`**:
 
-### Option A — use it as a local module
+```kotlin
+dependencies {
+    implementation("io.github.boghaniakash:swiftlyads:0.1.0")
+}
+```
+
+<details>
+<summary>Using a version catalog (<code>libs.versions.toml</code>)?</summary>
+
+```toml
+[versions]
+swiftlyads = "0.1.0"
+
+[libraries]
+swiftlyads = { module = "io.github.boghaniakash:swiftlyads", version.ref = "swiftlyads" }
+```
+
+then `implementation(libs.swiftlyads)`.
+</details>
+
+The library declares the AdMob and UMP dependencies as `api`, so they are available to your app
+transitively.
+
+### Alternative — build from source
+
+This repository is also a standalone Gradle library project (module `:swiftlyads`) you can build
+locally.
+
+#### Option A — use it as a local module
 
 Copy the `swiftlyads/` directory into your app project and add to your **`settings.gradle.kts`**:
 
@@ -47,10 +76,7 @@ dependencies {
 }
 ```
 
-The library already declares the AdMob and UMP dependencies as `api`, so they are available to
-your app transitively.
-
-### Option B — publish an AAR
+#### Option B — publish an AAR
 
 Run `./gradlew :swiftlyads:assembleRelease` and consume `swiftlyads/build/outputs/aar/swiftlyads-release.aar`.
 
