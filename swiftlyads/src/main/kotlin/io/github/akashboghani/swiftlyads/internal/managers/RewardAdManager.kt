@@ -12,20 +12,15 @@ import io.github.akashboghani.swiftlyads.error.SwiftlyAdError
 import io.github.akashboghani.swiftlyads.internal.MainDispatch
 import io.github.akashboghani.swiftlyads.presentation.SwiftlyRewardAd
 
-/**
- * Manages the rewarded ad lifecycle. Mirrors iOS `RewardAdManager`.
- *
- * The presentation is supplied per `show` call (see [InterAdManager] for the rationale);
- * [activePresentation] tracks the show currently in flight and receives the reward callback.
- */
+/** Manages the rewarded ad lifecycle. Mirrors iOS `RewardAdManager`. */
 internal class RewardAdManager(
     private val appContext: Context,
     private val adUnitId: String,
     private val adRequestProvider: () -> AdRequest,
+    private val activePresentation: SwiftlyRewardAd,
 ) {
     private var rewardedAd: RewardedAd? = null
     private var isLoading = false
-    private var activePresentation: SwiftlyRewardAd? = null
 
     val isReady: Boolean get() = rewardedAd != null
 
@@ -56,25 +51,23 @@ internal class RewardAdManager(
         rewardedAd = null
     }
 
-    fun show(activity: Activity, presentation: SwiftlyRewardAd) {
-        activePresentation = presentation
+    fun show(activity: Activity) {
         val ad = rewardedAd
         if (ad != null) {
             ad.show(activity) { rewardItem ->
-                presentation.onRewardCallback?.invoke(rewardItem.amount)
+                activePresentation.onRewardCallback?.invoke(rewardItem.amount)
             }
         } else {
             reload()
-            MainDispatch.nextTick {
-                presentation.onErrorCallback?.invoke(SwiftlyAdError.RewardedAdNotLoaded)
+            MainDispatch.afterDefaultDelay {
+                activePresentation.onErrorCallback?.invoke(SwiftlyAdError.RewardedAdNotLoaded)
             }
         }
     }
 
-    fun loadAndShow(activity: Activity, presentation: SwiftlyRewardAd) {
-        activePresentation = presentation
+    fun loadAndShow(activity: Activity) {
         if (rewardedAd != null) {
-            show(activity, presentation)
+            show(activity)
             return
         }
         isLoading = true
@@ -88,14 +81,14 @@ internal class RewardAdManager(
                     ad.fullScreenContentCallback = fullScreenCallback()
                     rewardedAd = ad
                     ad.show(activity) { rewardItem ->
-                        presentation.onRewardCallback?.invoke(rewardItem.amount)
+                        activePresentation.onRewardCallback?.invoke(rewardItem.amount)
                     }
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     isLoading = false
                     rewardedAd = null
-                    presentation.onErrorCallback?.invoke(
+                    activePresentation.onErrorCallback?.invoke(
                         SwiftlyAdError.SdkError(error.message, error.code),
                     )
                 }
@@ -105,18 +98,18 @@ internal class RewardAdManager(
 
     private fun fullScreenCallback() = object : FullScreenContentCallback() {
         override fun onAdShowedFullScreenContent() {
-            activePresentation?.onOpenCallback?.invoke()
+            activePresentation.onOpenCallback?.invoke()
         }
 
         override fun onAdDismissedFullScreenContent() {
             rewardedAd = null
-            activePresentation?.onCloseCallback?.invoke()
+            activePresentation.onCloseCallback?.invoke()
             reload()
         }
 
         override fun onAdFailedToShowFullScreenContent(error: AdError) {
             rewardedAd = null
-            activePresentation?.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
+            activePresentation.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
             reload()
         }
     }

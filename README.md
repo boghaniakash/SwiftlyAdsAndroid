@@ -34,7 +34,7 @@ project, so just add the dependency to your app module's **`build.gradle.kts`**:
 
 ```kotlin
 dependencies {
-    implementation("io.github.boghaniakash:swiftlyads:0.2.0")
+    implementation("io.github.boghaniakash:swiftlyads:0.1.0")
 }
 ```
 
@@ -43,7 +43,7 @@ dependencies {
 
 ```toml
 [versions]
-swiftlyads = "0.2.0"
+swiftlyads = "0.1.0"
 
 [libraries]
 swiftlyads = { module = "io.github.boghaniakash:swiftlyads", version.ref = "swiftlyads" }
@@ -159,54 +159,6 @@ Bypass frequency capping for a specific call:
 SwiftlyAds.showInterstitialAd(activity, bypassingFrequencyLimit = true)
 SwiftlyAds.showAppOpenAd(activity, bypassingFrequencyLimit = true)
 ```
-
-## Coroutines & Flow (optional)
-
-Prefer `suspend` over callbacks? Every full-screen format has a coroutine-friendly extension that
-suspends until the ad is dismissed (or fails). These live alongside the callback API — mix and match
-freely — and are safe under cancellation.
-
-```kotlin
-// Initialize (suspends until the SDK is ready; throws on failure)
-SwiftlyAds.initialize(activity)                       // showConsent = true by default
-
-// Full-screen ads return a SwiftlyAdResult
-when (val result = SwiftlyAds.showInterstitial(activity)) {
-    is SwiftlyAdResult.Dismissed -> { }
-    is SwiftlyAdResult.Failed    -> result.error
-    is SwiftlyAdResult.Rewarded  -> { }               // only for rewarded formats
-}
-
-// Rewarded formats resolve to Rewarded(amount) when the reward is earned
-val reward = SwiftlyAds.showReward(activity)
-if (reward is SwiftlyAdResult.Rewarded) grant(reward.amount)
-
-SwiftlyAds.showAppOpen(activity)
-SwiftlyAds.showRewardInter(activity)
-
-// Run the UMP consent flow and await the resulting status
-val status: SwiftlyConsentStatus = SwiftlyAds.awaitConsent(activity)
-```
-
-### Native ads as suspend / Flow
-
-```kotlin
-// One-shot: returns the ad, or null when frequency-capped / disabled (throws on SDK error)
-val ad: SwiftlyNativeAds? = SwiftlyAds.loadNativeAd()
-
-// Or observe the request lifecycle as a Flow — ideal for Compose:
-val state by SwiftlyAds.nativeAdFlow().collectAsStateWithLifecycle(SwiftlyNativeAdState.Loading)
-
-when (val s = state) {
-    SwiftlyNativeAdState.Loading     -> CircularProgressIndicator()
-    is SwiftlyNativeAdState.Loaded   -> SwiftlyNativeAdView(s.ad) { ad -> /* your layout */ }
-    SwiftlyNativeAdState.Unavailable -> { }
-    is SwiftlyNativeAdState.Failed   -> { /* s.error */ }
-}
-```
-
-> Requires `androidx.lifecycle:lifecycle-runtime-compose` for `collectAsStateWithLifecycle`.
-> The coroutines dependency itself is exposed transitively (`api`), so no extra setup is needed.
 
 ## Banner ads
 

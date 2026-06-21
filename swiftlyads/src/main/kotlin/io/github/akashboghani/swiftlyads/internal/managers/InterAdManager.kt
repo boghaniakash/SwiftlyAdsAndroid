@@ -12,22 +12,15 @@ import io.github.akashboghani.swiftlyads.error.SwiftlyAdError
 import io.github.akashboghani.swiftlyads.internal.MainDispatch
 import io.github.akashboghani.swiftlyads.presentation.SwiftlyInterAd
 
-/**
- * Manages the interstitial ad lifecycle. Mirrors iOS `InterAdManager`.
- *
- * The presentation (callback sink) is supplied per `show` call rather than once at construction,
- * so two overlapping show requests never clobber each other's callbacks. [activePresentation]
- * tracks the show currently in flight; the full-screen callback — which may have been attached at
- * preload time, before any show — reads it at fire time.
- */
+/** Manages the interstitial ad lifecycle. Mirrors iOS `InterAdManager`. */
 internal class InterAdManager(
     private val appContext: Context,
     private val adUnitId: String,
     private val adRequestProvider: () -> AdRequest,
+    private val activePresentation: SwiftlyInterAd,
 ) {
     private var interstitialAd: InterstitialAd? = null
     private var isLoading = false
-    private var activePresentation: SwiftlyInterAd? = null
 
     val isReady: Boolean get() = interstitialAd != null
 
@@ -59,25 +52,23 @@ internal class InterAdManager(
         interstitialAd = null
     }
 
-    /** Shows a preloaded ad for [presentation], or surfaces [SwiftlyAdError.InterstitialAdNotLoaded] and reloads. */
-    fun show(activity: Activity, presentation: SwiftlyInterAd) {
-        activePresentation = presentation
+    /** Shows a preloaded ad, or surfaces [SwiftlyAdError.InterstitialAdNotLoaded] and reloads. */
+    fun show(activity: Activity) {
         val ad = interstitialAd
         if (ad != null) {
             ad.show(activity)
         } else {
             reload()
-            MainDispatch.nextTick {
-                presentation.onErrorCallback?.invoke(SwiftlyAdError.InterstitialAdNotLoaded)
+            MainDispatch.afterDefaultDelay {
+                activePresentation.onErrorCallback?.invoke(SwiftlyAdError.InterstitialAdNotLoaded)
             }
         }
     }
 
     /** On-demand path used when preloading is disabled: load, then show as soon as it is ready. */
-    fun loadAndShow(activity: Activity, presentation: SwiftlyInterAd) {
-        activePresentation = presentation
+    fun loadAndShow(activity: Activity) {
         if (interstitialAd != null) {
-            show(activity, presentation)
+            show(activity)
             return
         }
         isLoading = true
@@ -96,7 +87,7 @@ internal class InterAdManager(
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     isLoading = false
                     interstitialAd = null
-                    presentation.onErrorCallback?.invoke(
+                    activePresentation.onErrorCallback?.invoke(
                         SwiftlyAdError.SdkError(error.message, error.code),
                     )
                 }
@@ -106,18 +97,18 @@ internal class InterAdManager(
 
     private fun fullScreenCallback() = object : FullScreenContentCallback() {
         override fun onAdShowedFullScreenContent() {
-            activePresentation?.onOpenCallback?.invoke()
+            activePresentation.onOpenCallback?.invoke()
         }
 
         override fun onAdDismissedFullScreenContent() {
             interstitialAd = null
-            activePresentation?.onCloseCallback?.invoke()
+            activePresentation.onCloseCallback?.invoke()
             reload()
         }
 
         override fun onAdFailedToShowFullScreenContent(error: AdError) {
             interstitialAd = null
-            activePresentation?.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
+            activePresentation.onErrorCallback?.invoke(SwiftlyAdError.SdkError(error.message, error.code))
             reload()
         }
     }
