@@ -25,6 +25,9 @@ class SampleApp : Application() {
                 .nativeAdUnitId("/21775744923/example/native")
                 .preloadsAds(true)
                 .environment(SwiftlyAdEnvironment.PRODUCTION)
+                .interAdShowCount(3)        // show an interstitial every 3rd request
+                .showsFirstInterAd(false)   // skip the first interstitial; first one shows on the 3rd request
+                .nativeAdShowCount(3)
                 .nativeAdMediaAspectRatio(SwiftlyMediaAspectRatio.LANDSCAPE),
         )
     }

@@ -34,7 +34,7 @@ project, so just add the dependency to your app module's **`build.gradle.kts`**:
 
 ```kotlin
 dependencies {
-    implementation("io.github.boghaniakash:swiftlyads:0.1.0")
+    implementation("io.github.boghaniakash:swiftlyads:0.3.0")
 }
 ```
 
@@ -43,7 +43,7 @@ dependencies {
 
 ```toml
 [versions]
-swiftlyads = "0.1.0"
+swiftlyads = "0.3.0"
 
 [libraries]
 swiftlyads = { module = "io.github.boghaniakash:swiftlyads", version.ref = "swiftlyads" }
@@ -268,6 +268,8 @@ SwiftlyAdsConfiguration()
 ```kotlin
 SwiftlyAdsConfiguration()
     .interAdShowCount(3)     // show interstitial every 3rd request
+    .showsFirstInterAd(true) // true (default): first request shows an ad immediately.
+                             // false: skip the first request(s) and only show on the Nth request.
     .appOpenAdShowCount(2)
     .nativeAdShowCount(2)
     .preloadsAds(true)       // load all configured formats after init; reload after dismissal
@@ -283,6 +285,22 @@ SwiftlyAds.isAppOpenAdReady
 SwiftlyAds.isRewardAdReady
 SwiftlyAds.isRewardInterAdReady
 ```
+
+### First interstitial behaviour (`showsFirstInterAd`)
+
+By default the **first** interstitial request always shows an ad, then `interAdShowCount`
+spacing applies. Set `showsFirstInterAd(false)` to suppress that first ad so the very first
+ones are skipped and an interstitial only appears on the Nth request.
+
+With `interAdShowCount(5)`:
+
+| `showsFirstInterAd` | Requests that show an interstitial |
+| ------------------- | ---------------------------------- |
+| `true` (default)    | 1st, 6th, 11th, … (first ad shows immediately) |
+| `false`             | 5th, 10th, 15th, … (first ad skipped)          |
+
+Calling `showInterstitialAd(activity, bypassingFrequencyLimit = true)` ignores both
+`interAdShowCount` and `showsFirstInterAd` and shows the ad right away.
 
 ## Mediation
 

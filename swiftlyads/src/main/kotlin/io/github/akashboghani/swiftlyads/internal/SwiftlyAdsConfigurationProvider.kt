@@ -22,6 +22,7 @@ internal data class SwiftlyAdsConfigurationProvider(
     val geography: SwiftlyDebugGeography,
     val resetsConsentOnLaunch: Boolean,
     val interAdShowCount: Int,
+    val showsFirstInterAd: Boolean,
     val appOpenAdShowCount: Int,
     val nativeAdShowCount: Int,
     val environment: SwiftlyAdEnvironment,

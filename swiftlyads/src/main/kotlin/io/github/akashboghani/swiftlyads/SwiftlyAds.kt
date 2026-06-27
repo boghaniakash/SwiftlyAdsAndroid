@@ -181,7 +181,12 @@ object SwiftlyAds {
             MainDispatch.afterDefaultDelay { swiftlyInterAd.onErrorCallback?.invoke(SwiftlyAdError.InterstitialAdUnitIdNotSet) }
             return swiftlyInterAd
         }
-        if (!bypassingFrequencyLimit && interAdCounter % (configuration?.interAdShowCount ?: 1) != 0) {
+        // When showsFirstInterAd is disabled, offset the counter by 1 so the very first call is
+        // skipped and the first ad only appears on the Nth call instead of immediately.
+        val firstAdOffset = if (configuration?.showsFirstInterAd == false) 1 else 0
+        if (!bypassingFrequencyLimit &&
+            (interAdCounter + firstAdOffset) % (configuration?.interAdShowCount ?: 1) != 0
+        ) {
             interAdCounter++
             MainDispatch.afterDefaultDelay { swiftlyInterAd.onCloseCallback?.invoke() }
             return swiftlyInterAd
@@ -384,6 +389,7 @@ object SwiftlyAds {
             .geography(c.geography)
             .resetsConsentOnLaunch(c.resetsConsentOnLaunch)
             .interAdShowCount(c.interAdShowCount)
+            .showsFirstInterAd(c.showsFirstInterAd)
             .appOpenAdShowCount(c.appOpenAdShowCount)
             .nativeAdShowCount(c.nativeAdShowCount)
             .environment(c.environment)

@@ -68,7 +68,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.boghaniakash",
         artifactId = "swiftlyads",
-        version = "0.1.0",
+        version = "0.3.0",
     )
 
     pom {

@@ -30,6 +30,7 @@ class SwiftlyAdsConfiguration {
     internal var geography: SwiftlyDebugGeography? = null
     internal var resetsConsentOnLaunch: Boolean? = null
     internal var interAdShowCount: Int? = null
+    internal var showsFirstInterAd: Boolean? = null
     internal var appOpenAdShowCount: Int? = null
     internal var nativeAdShowCount: Int? = null
     internal var environment: SwiftlyAdEnvironment? = null
@@ -50,6 +51,7 @@ class SwiftlyAdsConfiguration {
     fun geography(value: SwiftlyDebugGeography) = apply { geography = value }
     fun resetsConsentOnLaunch(value: Boolean) = apply { resetsConsentOnLaunch = value }
     fun interAdShowCount(value: Int) = apply { interAdShowCount = value }
+    fun showsFirstInterAd(value: Boolean) = apply { showsFirstInterAd = value }
     fun appOpenAdShowCount(value: Int) = apply { appOpenAdShowCount = value }
     fun nativeAdShowCount(value: Int) = apply { nativeAdShowCount = value }
     fun environment(value: SwiftlyAdEnvironment) = apply { environment = value }
@@ -77,6 +79,7 @@ class SwiftlyAdsConfiguration {
         geography = geography ?: SwiftlyDebugGeography.EEA,
         resetsConsentOnLaunch = resetsConsentOnLaunch ?: false,
         interAdShowCount = interAdShowCount ?: 1,
+        showsFirstInterAd = showsFirstInterAd ?: true,
         appOpenAdShowCount = appOpenAdShowCount ?: 1,
         nativeAdShowCount = nativeAdShowCount ?: 1,
         environment = environment ?: SwiftlyAdEnvironment.DEVELOPMENT,
